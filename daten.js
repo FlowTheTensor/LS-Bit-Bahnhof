@@ -367,7 +367,7 @@ function aufgabeGleitpunkt(letzte) {
       vorgabe: { F: bits },
       soll: w,
       pruefe: (e) => gleicheZahl(e, w),
-      loesung: `Vorzeichen ${t.s}, Exponent ${t.e} − 127 = ${t.exponent}, Mantisse 1 + ${floatText(t.m, 10)}: ${t.s ? "−" : ""}${floatText(1 + t.m, 10)} · 2^${t.exponent} = ${floatText(w, 10)}.`,
+      loesung: `Vorzeichen ${t.s} → ${t.s ? "−" : "+"}, Exponent ${t.e} − 127 = ${t.exponent}, Mantisse 1 + ${floatText(t.m, 10)}: ${t.s ? "−" : ""}${floatText(1 + t.m, 10)} · 2^${t.exponent} = ${floatText(w, 10)}.`,
     };
   }
   const w = waehle(FLOAT_LADEN);
@@ -379,7 +379,7 @@ function aufgabeGleitpunkt(letzte) {
     frage: `Belade den 32-Waggon-Zug mit ${floatText(w, 10)}. Tipp: Zahl als 1,xxx · 2^n schreiben.`,
     vorgabe: { F: zuBits(0, 32) },
     soll: bits,
-    loesung: `${floatText(w, 10)} = ${t.s ? "−" : ""}${floatText(1 + t.m, 10)} · 2^${t.exponent} → Vorzeichen ${t.s}, Exponent ${t.exponent} + 127 = ${t.e} = ${bitText(bits.slice(1, 9))}, Mantisse ${bitText(bits.slice(9, 17))} …`,
+    loesung: `${floatText(w, 10)} = ${t.s ? "−" : ""}${floatText(1 + t.m, 10)} · 2^${t.exponent} → Vorzeichen ${t.s ? "− = 1" : "+ = 0"}, Exponent ${t.exponent} + 127 = ${t.e} = ${bitText(bits.slice(1, 9))}, Mantisse ${bitText(bits.slice(9, 17))} …`,
   };
 }
 

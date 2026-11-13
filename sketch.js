@@ -276,6 +276,7 @@ function neueRechnung() {
     spalte: 7,
     summe: new Array(8).fill(null),
     uebertrag: new Array(8).fill(null),
+    uebertragZeit: new Array(8).fill(-9999),
     uebertragAus: null,
     info: "",
   };
@@ -306,13 +307,28 @@ function rechenSchritt() {
     const a = zuege.A;
     const b = STUFEN[stufe].id === "subtraktion" ? zuege.M : zuege.B;
     const i = rechnung.spalte;
-    const c = i === 7 ? 0 : rechnung.uebertragNeu;
-    rechnung.uebertrag[i] = c;
+    // Übertrag, der in diese Spalte hineinkommt (rechte Spalte: immer 0)
+    if (i === 7) {
+      rechnung.uebertrag[7] = 0;
+    }
+    const c = rechnung.uebertrag[i];
     const s = a[i] + b[i] + c;
     rechnung.summe[i] = s % 2;
-    rechnung.uebertragNeu = s >= 2 ? 1 : 0;
+    const neu = s >= 2 ? 1 : 0;
+    rechnung.uebertragNeu = neu;
+    // Der neue Übertrag wandert sofort eine Spalte nach links
+    if (i > 0) {
+      rechnung.uebertrag[i - 1] = neu;
+      rechnung.uebertragZeit[i - 1] = millis();
+    }
     const spaltenNr = 8 - i;
-    rechnung.info = `Spalte ${spaltenNr} (Wertigkeit ${wertigkeit(i, 8)}): ${a[i]} + ${b[i]} + Übertrag ${c} = ${s >= 2 ? (s === 2 ? "10₂" : "11₂") : s} → Waggon ${s % 2 ? "beladen" : "leer"}, Übertrag ${s >= 2 ? 1 : 0} nach links.`;
+    let weiter;
+    if (i > 0) {
+      weiter = ` Übertrag ${neu} wandert nach links in Spalte ${spaltenNr + 1} (Wertigkeit ${wertigkeit(i - 1, 8)}).`;
+    } else {
+      weiter = neu ? "" : " Kein Übertrag übrig.";
+    }
+    rechnung.info = `Spalte ${spaltenNr} (Wertigkeit ${wertigkeit(i, 8)}): ${a[i]} + ${b[i]} + Übertrag ${c} = ${s >= 2 ? (s === 2 ? "10₂" : "11₂") : s} → Waggon ${s % 2 ? "beladen" : "leer"}.${weiter}`;
     rechnung.spalte--;
     if (rechnung.spalte < 0) {
       rechnung.uebertragAus = rechnung.uebertragNeu;
@@ -576,7 +592,8 @@ function gleise() {
   const id = STUFEN[stufe].id;
   const pruef = modus === "pruefung";
   if (id === "gleitpunkt") {
-    return [{ zug: "F", label: "", y: 340, x0: 60, w: 25, h: 50, gap: 4, editierbar: !pruef || aufgabe.art === "laden", vorzeichen: false, float: true }];
+    // tief gesetzt: darüber steht die Erklärung zu Mantisse und Exponent
+    return [{ zug: "F", label: "", y: 450, x0: 60, w: 25, h: 50, gap: 4, editierbar: !pruef || aufgabe.art === "laden", vorzeichen: false, float: true }];
   }
   if (id === "addition") {
     return [
@@ -872,15 +889,15 @@ function bahnhofsSchild(x, y) {
 }
 
 function zeichneSchienen(x1, x2, y) {
-  // Schwellen
-  stroke(...FARBE.holz);
-  strokeWeight(5);
+  // Schwellen (blass, der Zug ist nur Kulisse für die Bits)
+  stroke(...hell(FARBE.holz, 0.55));
+  strokeWeight(4);
   for (let x = x1 + 6; x < x2; x += 18) {
     line(x, y + 2, x, y + 11);
   }
   // Schienen
-  stroke(...FARBE.schiene);
-  strokeWeight(2.5);
+  stroke(...hell(FARBE.schiene, 0.35));
+  strokeWeight(2);
   line(x1, y + 3, x2, y + 3);
   line(x1, y + 9, x2, y + 9);
   // Prellbock links
@@ -961,28 +978,17 @@ function zeichneGleis(g) {
     }
     // Kupplung zum nächsten Waggon
     if (i < n - 1) {
-      stroke(...FARBE.text);
+      stroke(...FARBE.linie);
       strokeWeight(2);
-      line(r.x + r.w, r.y + r.h - 6, r.x + r.w + g.gap, r.y + r.h - 6);
-    }
-    // Bit-Ziffer unter dem Waggon
-    if (!g.float) {
-      noStroke();
-      fill(...(unbekannt ? FARBE.blass : FARBE.text));
-      textFont(MONO);
-      textStyle(BOLD);
-      textSize(istRechenStufe() ? 15 : 20);
-      textAlign(CENTER, TOP);
-      text(unbekannt ? "?" : String(bit), r.x + r.w / 2, g.y + 16);
-      textStyle(NORMAL);
+      line(r.x + r.w, r.y + r.h - 4, r.x + r.w + g.gap, r.y + r.h - 4);
     }
   }
   // Lok rechts
   const lx = letzte.x + letzte.w + g.gap;
-  stroke(...FARBE.text);
+  stroke(...FARBE.linie);
   strokeWeight(2);
-  line(letzte.x + letzte.w, letzte.y + letzte.h - 6, lx, letzte.y + letzte.h - 6);
-  zeichneLok(lx, g.y, g.float ? 52 : istRechenStufe() ? 82 : 100, g.float ? 50 : g.h + 4, g.label || "LS");
+  line(letzte.x + letzte.w, letzte.y + letzte.h - 4, lx, letzte.y + letzte.h - 4);
+  zeichneLok(lx, g.y, g.float ? 52 : istRechenStufe() ? 70 : 76, g.float ? 50 : Math.min(g.h, 60), g.label || "LS");
 
   // Halbzüge (Nibbles) mit Hex-Ziffer
   if (g.hex) {
@@ -1029,61 +1035,65 @@ function wertSchild(x, y, w, negativ, gross) {
   line(x, y + h / 2, x, y + h / 2 + (gross ? 10 : 4));
 }
 
-// Ein Waggon: offener Güterwagen, beladen mit Kisten (1) oder leer (0)
+// Ein Waggon: Das Bit steht groß im Wagen, der Zug ist nur Nebensache.
+//   1 = beladen: genau eine Kiste mit großer weißer 1
+//   0 = leer:    leerer Wagen mit großer dunkler 0
 function zeichneWaggon(r, bit, o) {
   const { x, y, w, h } = r;
-  // Fahrgestell und Räder
+  // Fahrgestell und Räder (blass, damit die Bits im Vordergrund stehen)
   noStroke();
-  fill(...FARBE.text);
-  rect(x + 4, y + h - 8, w - 8, 8, 2);
-  const radY = y + h + 4;
-  fill(60, 58, 54);
-  circle(x + w * 0.24, radY, 15);
-  circle(x + w * 0.76, radY, 15);
-  fill(...FARBE.flaeche2);
-  circle(x + w * 0.24, radY, 5);
-  circle(x + w * 0.76, radY, 5);
+  fill(...FARBE.linie);
+  rect(x + 6, y + h - 6, w - 12, 6, 2);
+  const radY = y + h + 3;
+  fill(...FARBE.schiene);
+  circle(x + w * 0.24, radY, 11);
+  circle(x + w * 0.76, radY, 11);
 
-  // Ladung: Kisten stapeln sich mit kleiner Fall-Animation
-  if (bit === 1) {
-    const fall = 1 - weich(o.neu / 260);
-    const kisteW = (w - 18) / 2;
-    const kisteH = Math.min(22, (h - 14) / 2);
-    const farbe = o.vorzeichen ? FARBE.akzent : FARBE.senf;
-    for (let reihe = 0; reihe < 2; reihe++) {
-      for (let spalte = 0; spalte < 2; spalte++) {
-        const kx = x + 7 + spalte * (kisteW + 4);
-        const ky = y + h - 10 - (reihe + 1) * (kisteH + 2) - fall * 40;
-        fill(...farbe);
-        stroke(...hell(farbe, -0.3).map((v) => Math.max(0, v - 40)));
-        strokeWeight(1);
-        rect(kx, ky, kisteW, kisteH, 2);
-        stroke(255, 255, 255, 90);
-        line(kx + 3, ky + kisteH / 2, kx + kisteW - 3, ky + kisteH / 2);
-      }
-    }
-  }
-
-  // Wagenkasten (offen, nur die Bordwände)
-  const kastenY = y + h * 0.42;
-  const kastenH = h - 8 - h * 0.42;
-  stroke(...FARBE.text);
-  strokeWeight(o.aktiv ? 3 : 1.5);
+  // Wagenkasten (offen) – über die ganze Höhe, damit die Ziffer Platz hat
+  const kastenH = h - 6;
+  stroke(...(o.unbekannt ? FARBE.blass : FARBE.schiene));
+  strokeWeight(o.aktiv ? 2.5 : 1.5);
   if (o.unbekannt) {
     fill(...FARBE.flaeche);
     drawingContext.setLineDash([5, 4]);
   } else {
-    fill(...(o.hover ? hell(FARBE.akzent, 0.85) : o.aktiv ? hell(FARBE.senf, 0.75) : FARBE.flaeche2));
+    fill(...(o.hover ? hell(FARBE.akzent, 0.85) : o.aktiv ? hell(FARBE.senf, 0.8) : FARBE.flaeche));
   }
-  rect(x, kastenY, w, kastenH, 3);
+  rect(x, y, w, kastenH, 4);
   drawingContext.setLineDash([]);
-  // Bordwand-Streben
-  stroke(...FARBE.linie);
-  strokeWeight(1);
-  if (!o.unbekannt) {
-    line(x + w / 3, kastenY + 3, x + w / 3, kastenY + kastenH - 3);
-    line(x + (2 * w) / 3, kastenY + 3, x + (2 * w) / 3, kastenY + kastenH - 3);
+
+  const ziffernGroesse = Math.min(kastenH * 0.72, w * 0.55);
+  const mitteX = x + w / 2;
+  const mitteY = y + kastenH / 2 + 1;
+  textFont(MONO);
+  textStyle(BOLD);
+  textAlign(CENTER, CENTER);
+  if (o.unbekannt) {
+    noStroke();
+    fill(...FARBE.blass);
+    textSize(ziffernGroesse * 0.8);
+    text("?", mitteX, mitteY);
+  } else if (bit === 1) {
+    // eine einzige Kiste, fällt beim Beladen kurz von oben hinein
+    const fall = 1 - weich(o.neu / 260);
+    const rand = Math.max(4, Math.min(8, h * 0.08));
+    const farbe = o.vorzeichen ? FARBE.akzent : FARBE.senf;
+    const ky = y + rand - fall * 30;
+    fill(...farbe);
+    stroke(...hell(farbe, -0.3).map((v) => Math.max(0, v - 40)));
+    strokeWeight(1.5);
+    rect(x + rand, ky, w - 2 * rand, kastenH - 2 * rand, 3);
+    noStroke();
+    fill(255);
+    textSize(ziffernGroesse);
+    text("1", mitteX, ky + (kastenH - 2 * rand) / 2 + 1);
+  } else {
+    noStroke();
+    fill(...FARBE.text);
+    textSize(ziffernGroesse);
+    text("0", mitteX, mitteY);
   }
+  textStyle(NORMAL);
   if (o.aktiv) {
     noFill();
     stroke(...FARBE.senf);
@@ -1194,7 +1204,7 @@ function zeichneUebertraege(liste) {
   textFont(SCHRIFT);
   textSize(12);
   textAlign(RIGHT, CENTER);
-  text("Übertrag", e.x0 - 44, yU + 9);
+  text("Übertrag", e.x0 - 44, yU + 12);
 
   let ueb = null;
   let aus = null;
@@ -1202,45 +1212,63 @@ function zeichneUebertraege(liste) {
     ueb = rechnung.uebertrag;
     aus = rechnung.uebertragAus;
   }
-  for (let i = 0; i < 8; i++) {
+  const spalteX = (i) => {
     const r = waggonRechteck(e, i);
-    const cx = r.x + r.w / 2;
+    return r.x + r.w / 2;
+  };
+  const aktivSpalte = modus === "ueben" && rechnung && rechnung.phase === "spalten" ? rechnung.spalte : -1;
+  const kb = 30; // Kistenbreite
+  const kh = 24;
+  for (let i = 0; i < 8; i++) {
+    const cx = spalteX(i);
     const wert = ueb ? ueb[i] : null;
-    if (wert === 1) {
-      fill(...FARBE.senf);
-      stroke(140, 90, 20);
-      strokeWeight(1);
-      rect(cx - 11, yU, 22, 18, 2);
+    // leerer Platz für den Übertrag
+    noFill();
+    stroke(...(i === aktivSpalte ? FARBE.senf : FARBE.linie));
+    strokeWeight(i === aktivSpalte ? 2 : 1);
+    drawingContext.setLineDash([3, 3]);
+    rect(cx - kb / 2, yU, kb, kh, 3);
+    drawingContext.setLineDash([]);
+    if (wert === 0) {
       noStroke();
-      fill(255);
+      fill(...FARBE.blass);
       textFont(MONO);
-      textStyle(BOLD);
-      textSize(12);
+      textSize(14);
       textAlign(CENTER, CENTER);
-      text("1", cx, yU + 9.5);
-      textStyle(NORMAL);
-      // Pfeil: der Übertrag kam aus der Spalte rechts
-      stroke(...FARBE.senf);
-      strokeWeight(1.5);
-      line(cx + 14, yU + 9, cx + 30, yU + 9);
-      line(cx + 14, yU + 9, cx + 19, yU + 5);
-      line(cx + 14, yU + 9, cx + 19, yU + 13);
-    } else {
-      noFill();
-      stroke(...FARBE.linie);
-      strokeWeight(1);
-      drawingContext.setLineDash([3, 3]);
-      rect(cx - 11, yU, 22, 18, 2);
-      drawingContext.setLineDash([]);
-      if (wert === 0) {
-        noStroke();
-        fill(...FARBE.blass);
-        textFont(MONO);
-        textSize(12);
-        textAlign(CENTER, CENTER);
-        text("0", cx, yU + 9.5);
-      }
+      text("0", cx, yU + kh / 2 + 1);
     }
+    if (wert !== 1) {
+      continue;
+    }
+    // Übertrag 1: Bogenpfeil aus dem Ergebniswaggon der Spalte rechts,
+    // in der er entstanden ist (z. B. 1 + 1 = 10₂), hinüber in seine neue Spalte
+    const herkunft = i < 7 ? spalteX(i + 1) : null;
+    if (herkunft !== null) {
+      const start = herkunft + 14;
+      const wagenOben = e.y - e.h - 14;
+      noFill();
+      stroke(...FARBE.senf);
+      strokeWeight(2);
+      bezier(start, wagenOben - 2, start, yU - 34, cx + 8, yU - 34, cx + 4, yU - 3);
+      line(cx + 4, yU - 3, cx - 2, yU - 10);
+      line(cx + 4, yU - 3, cx + 9, yU - 11);
+    }
+    // Kiste fliegt beim Entstehen im Bogen nach links in ihre neue Spalte
+    const t = herkunft === null ? 1 : weich((millis() - rechnung.uebertragZeit[i]) / 650);
+    const kx = herkunft === null ? cx : lerp(herkunft, cx, t);
+    const ky = yU - Math.sin(t * Math.PI) * 34;
+    fill(...FARBE.senf);
+    stroke(140, 90, 20);
+    strokeWeight(i === aktivSpalte ? 2.5 : 1.5);
+    rect(kx - kb / 2, ky, kb, kh, 3);
+    noStroke();
+    fill(255);
+    textFont(MONO);
+    textStyle(BOLD);
+    textSize(16);
+    textAlign(CENTER, CENTER);
+    text("1", kx, ky + kh / 2 + 1);
+    textStyle(NORMAL);
   }
   // Der 9. Waggon: entgleist, wenn der Übertrag aus der letzten Spalte 1 ist
   const zeigeEntgleisen =
@@ -1329,6 +1357,7 @@ function zeichneFloatGruppen(g) {
   }
   // Werte der Gruppen über dem Zug (nur beim Üben)
   if (modus === "ueben") {
+    zeichneFloatErklaerung(g, bits, t);
     const ry = g.y - g.h - 40;
     const rV = waggonRechteck(g, 0);
     const rE1 = waggonRechteck(g, 1);
@@ -1353,6 +1382,179 @@ function zeichneFloatGruppen(g) {
     textAlign(LEFT, TOP);
     text(`Speicher: 0x${hex}  ·  als zwei 16-Bit-Register: 0x${hex.slice(0, 4)} | 0x${hex.slice(4)}`, g.x0, g.y + 70);
   }
+}
+
+// -----------------------------------------------------------------------------
+// Gleitpunkt: Wie kommt man auf Exponent und Mantisse? (über dem Zug)
+//   ① Betrag als Dualzahl mit Komma in einer Stellenwerttafel
+//   ② Komma verschieben, bis genau eine 1 davor steht → Exponent
+//   ③ Speichern: Exponent + 127, Nachkommastellen = Mantisse
+// -----------------------------------------------------------------------------
+const HOCH = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻" };
+
+function hoch(k) {
+  return String(k).split("").map((c) => HOCH[c] || c).join("");
+}
+
+// Ziffernfolge als Text, lange Nachkommateile werden mit … gekürzt
+function ziffernText(ziffern, max) {
+  return ziffern.length > max ? ziffern.slice(0, max).join("") + "…" : ziffern.join("");
+}
+
+// Text aus mehreren farbigen Stücken in einer Zeile: [[text, farbe, fett], …]
+function farbZeile(teile, x, y, groesse) {
+  textFont(SCHRIFT);
+  textSize(groesse);
+  textAlign(LEFT, TOP);
+  noStroke();
+  let cx = x;
+  for (const [txt, farbe, fett] of teile) {
+    textStyle(fett ? BOLD : NORMAL);
+    fill(...farbe);
+    text(txt, cx, y);
+    cx += textWidth(txt);
+  }
+  textStyle(NORMAL);
+}
+
+function zeichneFloatErklaerung(g, bits, t) {
+  const x = g.x0;
+  const breite = P_GLEIS.x + P_GLEIS.w - 30 - x;
+  let y = P_GLEIS.y + KOPF_H + 12;
+  const d = floatDual(bits);
+  if (!d) {
+    absatz("Sonderfall (Null, sehr kleine Zahl, ∞ oder NaN): Hier gibt es keine führende 1 – Details im Stellwerk.", x, y, breite, 13, FARBE.grau);
+    return;
+  }
+  const e = d.exponent;
+  const vorzeichen = t.s ? "−" : "+";
+
+  // ① Stellenwerttafel
+  farbZeile([["① Betrag als Dualzahl mit Komma schreiben (Stellenwerttafel)", FARBE.text, true]], x, y, 14);
+  y += 21;
+  y += absatz(
+    "Links vom Komma wie bei „Binär“: 1, 2, 4, 8 … Rechts vom Komma halbiert sich der Stellenwert weiter: 2⁻¹ = ½ = 0,5 · 2⁻² = ¼ = 0,25 · 2⁻³ = ⅛ = 0,125 …",
+    x, y, breite, 12, FARBE.grau) + 8;
+
+  const tafel = e <= 7 && e >= -5;
+  if (tafel) {
+    const zw = 60; // Spaltenbreite
+    const kommaB = 18;
+    const maxNach = 6;
+    const nachZeigen = d.nach.slice(0, maxNach);
+    const gekuerzt = d.nach.length > maxNach;
+    const x0 = x + 96;
+    const yPot = y;
+    const yWert = y + 19;
+    const yBit = y + 40;
+    const hBit = 26;
+    // Position der führenden 1 (Index über alle Spalten, ganz + nach)
+    const fuehrend = e >= 0 ? 0 : -e;
+    const spalteX = (k) => (k < d.ganz.length ? x0 + k * zw : x0 + k * zw + kommaB);
+
+    textFont(SCHRIFT);
+    textSize(12);
+    textAlign(LEFT, TOP);
+    fill(...FARBE.blass);
+    text("Stellenwert", x, yPot);
+    text("Bit", x, yBit + 5);
+
+    const alle = d.ganz.concat(nachZeigen);
+    for (let k = 0; k < alle.length; k++) {
+      const potenz = d.ganz.length - 1 - k;
+      const sx = spalteX(k);
+      const mitte = sx + (zw - 4) / 2;
+      textFont(MONO);
+      textAlign(CENTER, TOP);
+      textSize(13);
+      fill(...FARBE.blass);
+      text(`2${hoch(potenz)}`, mitte, yPot);
+      textSize(11.5);
+      fill(...FARBE.grau);
+      text(potenz >= 0 ? String(Math.pow(2, potenz)) : floatText(Math.pow(2, potenz)), mitte, yWert);
+      // Bit-Kästchen: führende 1 grau, Mantisse grün
+      const istFuehrend = k === fuehrend;
+      const istMantisse = k > fuehrend;
+      noStroke();
+      if (istMantisse) {
+        fill(...FLOAT_FARBE.m, 40);
+      } else {
+        fill(...FARBE.flaeche2);
+      }
+      rect(sx, yBit, zw - 4, hBit, 4);
+      textSize(15);
+      textStyle(istMantisse || istFuehrend ? BOLD : NORMAL);
+      fill(...(istMantisse ? FLOAT_FARBE.m : istFuehrend ? FARBE.blass : FARBE.text));
+      textAlign(CENTER, CENTER);
+      text(String(alle[k]), mitte, yBit + hBit / 2 + 1);
+      textStyle(NORMAL);
+    }
+    // altes Komma
+    const kommaX = x0 + d.ganz.length * zw + kommaB / 2 - 2;
+    textFont(MONO);
+    textSize(20);
+    textAlign(CENTER, CENTER);
+    fill(...FARBE.text);
+    text(",", kommaX, yBit + hBit / 2);
+    if (gekuerzt) {
+      textSize(15);
+      fill(...FARBE.blass);
+      text("…", spalteX(alle.length) + 10, yBit + hBit / 2);
+    }
+    // neues Komma direkt hinter der führenden 1 und Pfeil dorthin
+    const neuX = spalteX(fuehrend) + zw - 2;
+    const yPfeil = yBit + hBit + 8;
+    if (e !== 0) {
+      stroke(...FARBE.akzent);
+      strokeWeight(2);
+      line(neuX, yBit - 2, neuX, yBit + hBit + 2);
+      noStroke();
+    }
+    fill(...FARBE.akzent);
+    textFont(SCHRIFT);
+    textSize(12);
+    if (e === 0) {
+      textAlign(LEFT, CENTER);
+      text("Komma bleibt: Es steht schon genau eine 1 davor → Exponent 0", x0, yPfeil + 2);
+    } else {
+      stroke(...FARBE.akzent);
+      strokeWeight(2);
+      line(kommaX, yPfeil, neuX, yPfeil);
+      const r = neuX < kommaX ? 1 : -1;
+      line(neuX, yPfeil, neuX + 7 * r, yPfeil - 4);
+      line(neuX, yPfeil, neuX + 7 * r, yPfeil + 4);
+      noStroke();
+      const richtung = e > 0 ? "links" : "rechts";
+      const anzahl = Math.abs(e);
+      textAlign(LEFT, CENTER);
+      text(`Komma ${anzahl} ${anzahl === 1 ? "Stelle" : "Stellen"} nach ${richtung} → Exponent ${e}`, Math.max(kommaX, neuX) + 12, yPfeil);
+    }
+    y = yPfeil + 20;
+  } else {
+    y += absatz("(Die Zahl hat zu viele Stellen für die Tafel – hier nur die Rechnung.)", x, y, breite, 12, FARBE.blass) + 6;
+  }
+
+  // ② Komma verschieben
+  const dual = ziffernText(d.ganz, 12) + (d.nach.length ? "," + ziffernText(d.nach, 10) : "");
+  const norm = "1" + (d.mantisse.length ? "," + ziffernText(d.mantisse, 10) : "");
+  farbZeile([
+    ["② Komma verschieben, bis genau eine 1 davor steht: ", FARBE.text],
+    [`${dual} = ${norm} · 2${hoch(e)}`, FARBE.text, true],
+    [". Diese 1 steht immer vorne – sie wird nicht gespeichert.", FARBE.text],
+  ], x, y, 13);
+  y += 24;
+
+  // ③ Speichern
+  const mText = d.mantisse.length ? ziffernText(d.mantisse, 10) : "0";
+  farbZeile([
+    ["③ Speichern: Vorzeichen ", FARBE.text],
+    [`${vorzeichen} = ${t.s}`, FLOAT_FARBE.v, true],
+    [" · ", FARBE.text],
+    [`Exponent ${e} + 127 = ${t.e}`, FLOAT_FARBE.e, true],
+    [" · ", FARBE.text],
+    [`Mantisse = Nachkommastellen ${mText}`, FLOAT_FARBE.m, true],
+    [d.mantisse.length < 23 ? ", Rest mit 0 auffüllen" : "", FARBE.text],
+  ], x, y, 13);
 }
 
 function zeichneHinweisBanner() {
@@ -1467,7 +1669,7 @@ function zeichneStellwerk() {
   y += 66;
   let formel;
   if (t.art === "normal") {
-    formel = `(−1)^${t.s} · ${floatText(1 + t.m, 10)} · 2^${t.exponent}`;
+    formel = `${t.s ? "−" : "+"}${floatText(1 + t.m, 10)} · 2^${t.exponent}`;
   } else if (t.art === "null") {
     formel = "Exponent 0 und Mantisse 0: die Null";
   } else if (t.art === "denormal") {
@@ -1478,7 +1680,8 @@ function zeichneStellwerk() {
     formel = "Exponent 255, Mantisse ≠ 0: NaN (keine Zahl)";
   }
   y += absatz("= " + formel, x, y, b, 15, FARBE.text) + 12;
-  y += absatz("Wert = (−1)^V · (1 + Mantisse) · 2^(Exponent − 127)", x, y, b, 13, FARBE.grau) + 14;
+  y += absatz("Wert = ±(1 + Mantisse) · 2^(Exponent − 127)", x, y, b, 13, FARBE.grau) + 4;
+  y += absatz("Vorzeichen-Waggon: 0 = +, 1 = − (wie beim Zweierkomplement)", x, y, b, 13, FARBE.grau) + 14;
   if (floatEingabe !== null) {
     const fehler = gespeichert - floatEingabe;
     anzeigeZeile(x, y, b, "Eingegeben", floatText(floatEingabe, 12), FARBE.text);
@@ -1743,7 +1946,7 @@ function zeichneTooltip() {
   let txt;
   if (g.float) {
     const gr = floatGruppe(t.i);
-    const name = gr === "v" ? "Vorzeichen" : gr === "e" ? `Exponent, Wertigkeit ${Math.pow(2, 8 - t.i)}` : `Mantisse, Wertigkeit 2^−${t.i - 8}`;
+    const name = gr === "v" ? "Vorzeichen (0 = +, 1 = −)" : gr === "e" ? `Exponent, Wertigkeit ${Math.pow(2, 8 - t.i)}` : `Mantisse, Wertigkeit 2^−${t.i - 8}`;
     txt = `Waggon ${t.i + 1} · ${name}`;
   } else {
     txt = g.vorzeichen && t.i === 0

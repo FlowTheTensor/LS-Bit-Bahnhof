@@ -103,15 +103,28 @@ Ein **Überlauf** liegt vor, wenn das richtige Ergebnis außerhalb von −128 �
 
 Eine Kommazahl wird wie in der wissenschaftlichen Schreibweise gespeichert, nur zur Basis 2:
 
-$$\text{Wert} = (-1)^V \cdot (1 + \text{Mantisse}) \cdot 2^{\,\text{Exponent} - 127}$$
+$$\text{Wert} = \pm\,(1 + \text{Mantisse}) \cdot 2^{\,\text{Exponent} - 127}$$
+
+Das Vorzeichen steht im vordersten Waggon, wie beim Zweierkomplement: **+ → 0, − → 1**. Anders als dort wird der Rest aber nicht umgedreht: Exponent und Mantisse bleiben bei −12,5 genau dieselben wie bei +12,5.
 
 | Teil | Waggons | Farbe |
 |---|---|---|
-| Vorzeichen V | 1 | rot |
+| Vorzeichen (0 = +, 1 = −) | 1 | rot |
 | Exponent (um 127 verschoben) | 8 | blau |
 | Mantisse (Nachkommastellen, die führende 1 wird nicht gespeichert) | 23 | grün |
 
-Beispiel: 12,5 = 1,5625 · 2³ → V = 0, Exponent 3 + 127 = 130 = 1000 0010, Mantisse 1001 0000 … → **0x41480000**.
+So kommt man auf Exponent und Mantisse (steht beim Üben auch direkt über dem Zug):
+
+**① Betrag als Dualzahl mit Komma.** Links vom Komma gelten die Stellenwerte wie bei „Binär“, rechts vom Komma halbiert sich der Wert weiter:
+
+| Stellenwert | 2³ | 2² | 2¹ | 2⁰ | , | 2⁻¹ | 2⁻² | 2⁻³ |
+|---|---|---|---|---|---|---|---|---|
+| Wert | 8 | 4 | 2 | 1 | , | ½ = 0,5 | ¼ = 0,25 | ⅛ = 0,125 |
+| 12,5 | 1 | 1 | 0 | 0 | , | 1 | | |
+
+**② Komma verschieben**, bis genau eine 1 davor steht: 1100,1 = 1,1001 · 2³. Das Komma wandert 3 Stellen nach links → Exponent 3 (nach rechts → negativer Exponent, z. B. 0,011 = 1,1 · 2⁻²). Vor dem Komma steht so immer eine 1 – sie wird deshalb nicht gespeichert.
+
+**③ Speichern:** Vorzeichen + → 0, Exponent 3 + 127 = 130 = 1000 0010, Mantisse = die Nachkommastellen 1001, Rest mit 0 auffüllen → **0x41480000**.
 
 Unter dem Zug steht der Speicherinhalt auch als zwei 16-Bit-Register (0x4148 | 0x0000) – so kommt ein `Float` per Modbus oder OPC UA oft an.
 

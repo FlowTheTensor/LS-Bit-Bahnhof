@@ -130,6 +130,36 @@ function floatTeile(bits) {
   return { s, e, m, art, exponent: e - 127 };
 }
 
+// Betrag einer (normalen) float-Zahl als Dualzahl mit Komma, zum Erklären:
+//   ganz      Ziffern links vom Komma, z. B. [1,1,0,0] bei 12,5
+//   nach      Ziffern rechts vom Komma, z. B. [1]
+//   mantisse  gespeicherte Nachkommastellen ohne Nullen am Ende, z. B. [1,0,0,1]
+//   exponent  um wie viele Stellen das Komma verschoben wird (z. B. 3)
+// Für Null, sehr kleine Zahlen, ∞ und NaN gibt es keine solche Zerlegung → null
+function floatDual(bits) {
+  const t = floatTeile(bits);
+  if (t.art !== "normal") {
+    return null;
+  }
+  const mBits = bits.slice(9);
+  const mantisse = mBits.slice(0, mBits.lastIndexOf(1) + 1);
+  const ziffern = [1].concat(mantisse);
+  const e = t.exponent;
+  let ganz;
+  let nach;
+  if (e >= 0) {
+    ganz = ziffern.slice(0, e + 1);
+    while (ganz.length < e + 1) {
+      ganz.push(0);
+    }
+    nach = ziffern.slice(e + 1);
+  } else {
+    ganz = [0];
+    nach = new Array(-e - 1).fill(0).concat(ziffern);
+  }
+  return { ganz, nach, mantisse, exponent: e };
+}
+
 // Gleitpunktwert lesbar machen, ohne wissenschaftliche Schreibweise bei
 // "normalen" Größen; exakte Dezimaldarstellung bis 20 Nachkommastellen
 function floatText(wert, stellen) {
@@ -176,7 +206,7 @@ function bitText(bits, gruppe) {
 if (typeof module !== "undefined") {
   module.exports = {
     zuBits, ausBits, ausBitsVorzeichen, zuBitsVorzeichen, wertigkeit, wertigkeitVorzeichen,
-    zuHex, hexZuBits, invertiere, addiere, zweierkomplement, vorzeichenUeberlauf,
+    zuHex, hexZuBits, invertiere, addiere, zweierkomplement, vorzeichenUeberlauf, floatDual,
     floatZuBits, bitsZuFloat, floatTeile, floatText, leseZahl, bitText,
   };
 }
