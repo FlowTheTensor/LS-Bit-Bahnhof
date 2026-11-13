@@ -23,7 +23,7 @@ Genau das wird im 2. Schuljahr wichtig: Dann liest ein Raspberry Pi per OPC UA d
 | 1 | Binär (Dualsystem) | Rangierer | Ein Zug mit 8 Waggons, darüber die Wertigkeiten 128 … 1 |
 | 2 | Hexadezimal | Weichensteller | Zwei Halbzüge (Nibbles) à 4 Waggons, darunter je eine Hex-Ziffer |
 | 3 | Addition | Lokführer | Züge A und B, Überträge als kleine Kisten, Ergebniszug; bei Überlauf entgleist der 9. Waggon |
-| 4 | Zweierkomplement | Fahrdienstleiter | Der vorderste Waggon zählt −128; die Umkehrschleife dreht alle Waggons um und rechnet +1 |
+| 4 | Zweierkomplement | Fahrdienstleiter | Der vorderste Waggon ist der Vorzeichen-Waggon (VZ); die Umkehrschleife dreht alle Waggons um und rechnet +1 |
 | 5 | Subtraktion durch Addition | Stellwerksmeister | A − B = A + (−B): B fährt durch die Umkehrschleife, dann wird addiert |
 | 6 | Gleitpunkt (IEEE 754, 32 Bit) | Bahnhofsvorsteher | Langer Zug: 1 Vorzeichen-, 8 Exponent-, 23 Mantissen-Waggons |
 
@@ -58,19 +58,34 @@ Mit „Schritt“ (oder Taste →) wird Spalte für Spalte von rechts gerechnet,
 
 ### 4. Zweierkomplement
 
-Vereinbarung: Der vorderste Waggon zählt **−128** statt +128. So reichen 8 Waggons für −128 … +127.
+Der vorderste Waggon ist der **Vorzeichen-Waggon (VZ)**: leer = positiv, beladen = negativ. Die Umrechnung läuft in beide Richtungen gleich: **alle Waggons umdrehen, dann +1** (Umkehrschleife).
+
+**Negative Zahl beladen** – Betrag laden, umdrehen, +1:
+
+```
++12      = 0000 1100
+umdrehen:  1111 0011
++1:        1111 0100   = −12
+```
+
+**Zug lesen** – VZ beladen? Dann umdrehen, +1, Betrag lesen, Minus davor:
+
+```
+Zug:       1111 0100   VZ beladen → negativ
+umdrehen:  0000 1011
++1:        0000 1100   = 12  → −12
+```
 
 | Zahl | Zug |
 |---|---|
 | +12 | 0000 1100 |
 | −12 | 1111 0100 |
-| −128 | 1000 0000 |
 | −1 | 1111 1111 |
+| −128 | 1000 0000 |
 
-Eine Zahl negieren (Umkehrschleife): **alle Waggons umdrehen, dann +1**.
-+12 = 0000 1100 → umdrehen: 1111 0011 → +1: 1111 0100 = −12.
+Mit 8 Waggons reicht der Bereich von −128 bis +127.
 
-Sonderfall: −128 hat in 8 Bit kein positives Gegenstück. Schickt man −128 durch die Umkehrschleife, kommt wieder −128 heraus.
+Sonderfall: −128 hat in 8 Bit kein positives Gegenstück. Umdrehen und +1 ergibt wieder 1000 0000 – als Betrag gelesen 128, also −128. Schickt man −128 durch die Umkehrschleife, kommt wieder −128 heraus.
 
 ### 5. Subtraktion durch Addition
 

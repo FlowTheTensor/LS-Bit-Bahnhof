@@ -43,9 +43,9 @@ const STUFEN = [
     name: "Zweierkomplement",
     rang: "Fahrdienstleiter",
     bits: 8,
-    untertitel: "Stufe 4 · Negative Zahlen: der vorderste Waggon zählt −128",
+    untertitel: "Stufe 4 · Negative Zahlen: umdrehen und +1",
     gleisTitel: "Gleis 4 · Zug mit Vorzeichen-Waggon",
-    ziel: "Der vorderste Waggon zählt −128. So lassen sich Zahlen von −128 bis +127 transportieren.",
+    ziel: "Vorzeichen-Waggon (VZ) beladen → Zahl negativ. Betrag finden: alle Waggons umdrehen, dann +1.",
   },
   {
     id: "subtraktion",
@@ -130,17 +130,29 @@ function rechenweg(bits) {
   return teile.length ? `${teile.join(" + ")} = ${ausBits(bits)}` : "kein Waggon beladen = 0";
 }
 
-// Rechenweg im Zweierkomplement, z. B. "−128 + 64 + 16 + 3 = −45"
-function rechenwegVorzeichen(bits) {
-  const teile = [];
-  for (let i = 0; i < bits.length; i++) {
-    if (bits[i]) {
-      const w = wertigkeitVorzeichen(i, bits.length);
-      teile.push(w < 0 ? `−${-w}` : String(w));
-    }
-  }
+// Rechenweg im Zweierkomplement als einzelne Schritte:
+//   positiv: Vorzeichen-Waggon leer, Rest normal lesen
+//   negativ: Vorzeichen-Waggon beladen → umdrehen, +1, Betrag lesen, Minus davor
+function rechenwegZweierSchritte(bits) {
   const erg = ausBitsVorzeichen(bits);
-  return teile.length ? `${teile.join(" + ")} = ${vz(erg)}` : "kein Waggon beladen = 0";
+  if (bits[0] === 0) {
+    return ["Vorzeichen-Waggon leer → positiv", `${rechenweg(bits)}`];
+  }
+  const um = invertiere(bits);
+  const betrag = zweierkomplement(bits);
+  return [
+    "Vorzeichen-Waggon beladen → negativ",
+    `umdrehen: ${bitText(um)}`,
+    `+1:       ${bitText(betrag)} = ${ausBits(betrag)}`,
+    `Minus davor → ${vz(erg)}`,
+  ];
+}
+
+// Rechenweg im Zweierkomplement in einer Zeile
+function rechenwegVorzeichen(bits) {
+  return rechenwegZweierSchritte(bits)
+    .map((s) => s.replace(/\s+/g, " "))
+    .join(", ");
 }
 
 // Zahl mit echtem Minuszeichen
@@ -305,11 +317,11 @@ function aufgabeZweier(letzte) {
   return {
     art,
     kontext: `Von ${s.ort} rollt ein Zug ein (${s.groesse}).`,
-    frage: "Welche Zahl transportiert der Zug? Der vorderste Waggon zählt −128.",
+    frage: "Welche Zahl transportiert der Zug (Zweierkomplement)? Tipp: Vorzeichen-Waggon beladen → umdrehen, +1, Minus davor.",
     vorgabe: { E: bits },
     soll: n,
     pruefe: (e) => gleicheZahl(e, n),
-    loesung: `${bitText(bits)}₂ = ${rechenwegVorzeichen(bits)}.`,
+    loesung: `${bitText(bits)}: ${rechenwegVorzeichen(bits)}.`,
   };
 }
 
@@ -373,5 +385,5 @@ function aufgabeGleitpunkt(letzte) {
 
 // für Tests mit Node.js
 if (typeof module !== "undefined") {
-  module.exports = { STUFEN, SERIE_ZIEL, neueAufgabe, rechenweg, rechenwegVorzeichen, gleicheZahl, gleichesHex, vz };
+  module.exports = { STUFEN, SERIE_ZIEL, neueAufgabe, rechenweg, rechenwegVorzeichen, rechenwegZweierSchritte, gleicheZahl, gleichesHex, vz };
 }

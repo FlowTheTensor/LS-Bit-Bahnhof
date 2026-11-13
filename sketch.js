@@ -1009,7 +1009,8 @@ function istUnterMaus(r) {
 }
 
 function wertSchild(x, y, w, negativ, gross) {
-  const txt = w < 0 ? `−${-w}` : String(w);
+  // Der Vorzeichen-Waggon bekommt das Schild „VZ“ statt einer Wertigkeit
+  const txt = negativ ? "VZ" : w < 0 ? `−${-w}` : String(w);
   textFont(MONO);
   textStyle(BOLD);
   textSize(gross ? 15 : 12);
@@ -1403,9 +1404,24 @@ function zeichneStellwerk() {
       y += absatz(`0x${h} = ${parseInt(h[0], 16)} · 16 + ${parseInt(h[1], 16)} = ${ausBits(bits)}`, x, y, b, 14, FARBE.text) + 12;
       zeichneHexTabelle(x, y, b);
     } else if (id === "zweier") {
-      y += absatz("Rechenweg: " + rechenwegVorzeichen(bits), x, y, b, 14, FARBE.text) + 10;
-      y += absatz(`Ohne Vorzeichen gelesen wäre es ${ausBits(bits)}. Erst die Vereinbarung „vorderster Waggon zählt −128“ macht daraus ${vz(wert)}. Bereich: −128 … 127.`, x, y, b, 13, FARBE.grau) + 10;
-      absatz("Tipp: Die Umkehrschleife dreht das Vorzeichen um – alle Waggons umdrehen, dann +1.", x, y, b, 13, FARBE.blass);
+      y += absatz("Rechenweg:", x, y, b, 14, FARBE.text) + 2;
+      const schritte = rechenwegZweierSchritte(bits);
+      // in Monospace, damit die Bitmuster genau untereinander stehen
+      textFont(MONO);
+      textSize(14);
+      textAlign(LEFT, TOP);
+      noStroke();
+      for (let k = 0; k < schritte.length; k++) {
+        const letzte = k === schritte.length - 1;
+        fill(...(letzte ? FARBE.akzent : FARBE.text));
+        textStyle(letzte ? BOLD : NORMAL);
+        text(schritte[k], x + 12, y);
+        y += 20;
+      }
+      textStyle(NORMAL);
+      y += 10;
+      y += absatz(`Ohne Vorzeichen (unsigned) gelesen wäre derselbe Zug ${ausBits(bits)}. Bereich mit Vorzeichen: −128 … +127.`, x, y, b, 13, FARBE.grau) + 8;
+      absatz("Umkehrschleife: umdrehen und +1 macht aus +x ein −x und umgekehrt.", x, y, b, 13, FARBE.blass);
     } else {
       y += absatz("Rechenweg: " + rechenweg(bits), x, y, b, 14, FARBE.text) + 10;
       absatz("8 Waggons können 2⁸ = 256 verschiedene Ladungen transportieren: die Zahlen 0 … 255.", x, y, b, 13, FARBE.grau);
@@ -1730,8 +1746,9 @@ function zeichneTooltip() {
     const name = gr === "v" ? "Vorzeichen" : gr === "e" ? `Exponent, Wertigkeit ${Math.pow(2, 8 - t.i)}` : `Mantisse, Wertigkeit 2^−${t.i - 8}`;
     txt = `Waggon ${t.i + 1} · ${name}`;
   } else {
-    const w = g.vorzeichen ? wertigkeitVorzeichen(t.i, n) : wertigkeit(t.i, n);
-    txt = `Waggon ${t.i + 1} · Wertigkeit ${vz(w)}`;
+    txt = g.vorzeichen && t.i === 0
+      ? `Waggon 1 · Vorzeichen (beladen = negativ)`
+      : `Waggon ${t.i + 1} · Wertigkeit ${wertigkeit(t.i, n)}`;
   }
   if (!g.editierbar || !istGueltigeErgebnisAnsicht(g)) {
     txt += modus === "ueben" && g.ergebnis ? " · wird berechnet" : " · fest";
