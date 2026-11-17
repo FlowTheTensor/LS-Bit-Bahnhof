@@ -207,3 +207,56 @@ input.ui.feld:focus-visible {
 input.ui.feld:disabled {
   opacity: 0.5;
 }
+
+/* ---------------------------------------------------------------- */
+/* Farbschema hell/dunkel (Schalter rechts in der Kopfzeile)         */
+/* Die Klasse "dunkelmodus" sitzt am <html>-Element.                 */
+/* ---------------------------------------------------------------- */
+button.ui.farbschema {
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+button.ui.farbschema svg {
+  width: 1.15em;
+  height: 1.15em;
+  display: block;
+}
+
+html.dunkelmodus {
+  color-scheme: dark;
+  --bg: #161615;
+  --surface: #201f1e;
+  --surface-2: #2c2a28;
+  --ink: #ece8e0;
+  --ink-soft: #b8b2a8;
+  --ink-faint: #8c877e;
+  --accent: #e0455c;
+  --accent-dark: #c9364c;
+  --line: #3e3b37;
+  --line-soft: #0f0f0e;
+}
+
+html.dunkelmodus .huelle canvas {
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+
+/* Knöpfe mit Logo-Schwarz: im dunklen Schema hell mit dunkler Schrift */
+html.dunkelmodus button.ui.kopf.aktiv,
+html.dunkelmodus button.ui.dunkel {
+  color: #161615;
+}
+
+html.dunkelmodus button.ui.dunkel:hover:not(:disabled) {
+  background: #cfc9bf;
+  border-color: #cfc9bf;
+}
+
+html.dunkelmodus button.ui.beispiel:hover:not(:disabled) {
+  background: #3a1c22;
+}
+
+html.dunkelmodus button.ui.beispiel.aktiv {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}

@@ -165,6 +165,7 @@ Aufgabenarten je Stufe:
 | „Alles rechnen“ | bis zum Ende durchrechnen |
 | Maus über einem Waggon | Nummer und Wertigkeit |
 | **Enter** in der Prüfung | Antwort prüfen bzw. nächste Aufgabe |
+| Mond / Sonne oben rechts | dunkles oder helles Farbschema; die Wahl wird im Browser gespeichert und gilt für alle Lernsituationen |
 
 ## Ideen für den Unterricht
 
@@ -190,6 +191,7 @@ Aufgabenarten je Stufe:
 | `ui.js` | Knöpfe und Eingabefelder |
 | `sketch.js` | Ablauf, Zeichnen (Gleise, Waggons, Stellwerk), Erklärtexte |
 | `assets/logo-jps.png` | Logo der Jakob-Preh-Schule |
+| `assets/logo-jps-hell.png` | Logo in Weiß für das dunkle Farbschema |
 | `libraries/p5.min.js` | p5.js (lokal, damit die Seite auch offline läuft) |
 
 Eine neue Aufgabenart lässt sich in `daten.js` ergänzen: in der passenden Funktion `aufgabeXxx()` einen weiteren Fall anlegen. Die Anlässe aus dem Labor stehen in den Listen `SENSOREN_POSITIV`, `SENSOREN_VORZEICHEN` und `SENSOREN_FLOAT`. Die Zahl der nötigen richtigen Antworten in Folge steht in `SERIE_ZIEL`.
@@ -206,6 +208,7 @@ Am einfachsten in VS Code mit der Erweiterung **Live Server**: Rechtsklick auf `
 - Fehler in `draw()` werden abgefangen und als Hinweis angezeigt, statt das Programm einzufrieren.
 - Die Gleitpunkt-Umrechnung nutzt `DataView.setFloat32` und zeigt damit genau den Wert, den auch ein C++-`float` speichert.
 - Die Prüfsiegel liegen im `localStorage` des Browsers. Wo das nicht verfügbar ist, gelten sie nur bis zum Neuladen.
+- **Farbschema hell/dunkel:** Alle Farben stehen in zwei Paletten (`FARBE_HELL`, `FARBE_DUNKEL`); `FARBE` enthält die aktive Palette und wird beim Umschalten in place überschrieben. Die CSS-Variablen in `style.css` wechseln über die Klasse `dunkelmodus` am `<html>`-Element. Die Wahl steht im `localStorage` unter `jps-lernsituationen-farbschema` (ohne Speicher gilt die Systemeinstellung). Im dunklen Schema zeigt die Kopfzeile `assets/logo-jps-hell.png`.
 
 ## Lizenz
 
@@ -226,5 +229,5 @@ Vorschlag für die Namensnennung: *„Bit-Bahnhof · Zahlensysteme“ von Christ
 | Bestandteil | Rechte |
 |---|---|
 | `libraries/p5.min.js` | [p5.js](https://p5js.org), GNU LGPL 2.1 |
-| `assets/logo-jps.png` | Logo der Jakob-Preh-Schule – alle Rechte bei der Schule |
+| `assets/logo-jps.png`, `assets/logo-jps-hell.png` | Logo der Jakob-Preh-Schule – alle Rechte bei der Schule |
 | Schriften Quicksand, Inter, JetBrains Mono | über Google Fonts eingebunden, SIL Open Font License 1.1 |

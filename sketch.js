@@ -67,8 +67,8 @@ const P_AUFTRAG = { x: 24, y: 620, w: 1060, h: 264, titel: "" };
 const P_FREIGABE = { x: 1100, y: 620, w: 476, h: 264, titel: "Freigaben" };
 const KOPF_H = 34;
 
-// Farben nach dem Corporate Design der Jakob-Preh-Schule (bsnes.de)
-const FARBE = {
+// Farben (hell und dunkel) nach dem Corporate Design der Jakob-Preh-Schule (bsnes.de)
+const FARBE_HELL = {
   papier: [251, 249, 245],
   flaeche: [255, 255, 255],
   flaeche2: [243, 238, 230],
@@ -83,7 +83,76 @@ const FARBE = {
   blau: [44, 92, 150],
   holz: [160, 112, 62],
   schiene: [120, 116, 108],
+  // Flächen und Schrift auf Flächen (für das dunkle Schema nötig)
+  textInvers: [255, 255, 255],
+  dunkelFlaeche: [29, 29, 28],
+  schatten: [29, 29, 28],
+  akzentFlaeche: [253, 240, 242],
+  akzentLinie: [240, 200, 208],
+  rotFlaeche: [251, 225, 230],
+  gruenFlaeche: [228, 241, 233],
 };
+
+const FARBE_DUNKEL = {
+  papier: [22, 22, 21],
+  flaeche: [32, 31, 30],
+  flaeche2: [44, 42, 40],
+  linie: [62, 59, 55],
+  text: [236, 232, 224],
+  grau: [184, 178, 168],
+  blass: [140, 135, 126],
+  akzent: [236, 76, 98],
+  akzentHell: [255, 64, 92],
+  senf: [222, 166, 72],
+  gruen: [96, 186, 132],
+  blau: [104, 156, 222],
+  holz: [132, 94, 56],
+  schiene: [150, 146, 138],
+  textInvers: [22, 22, 21],
+  dunkelFlaeche: [70, 67, 62],
+  schatten: [0, 0, 0],
+  akzentFlaeche: [52, 27, 32],
+  akzentLinie: [104, 44, 56],
+  rotFlaeche: [72, 32, 40],
+  gruenFlaeche: [30, 54, 41],
+};
+
+const FARBE = {};
+
+// --- Farbschema hell/dunkel ---------------------------------------------------
+// FARBE enthält immer die aktive Palette. Beim Umschalten werden die Arrays
+// in place überschrieben, damit Verweise wie [FARBE.blau, …] gültig bleiben.
+// Die Wahl gilt für alle Lernsituationen (gleicher localStorage-Schlüssel).
+const FARBSCHEMA_SCHLUESSEL = "jps-lernsituationen-farbschema";
+let dunkelModus = false;
+
+function setzeFarbschema(dunkel) {
+  dunkelModus = !!dunkel;
+  const quelle = dunkelModus ? FARBE_DUNKEL : FARBE_HELL;
+  for (const k in quelle) {
+    if (FARBE[k]) {
+      FARBE[k].splice(0, FARBE[k].length, ...quelle[k]);
+    } else {
+      FARBE[k] = quelle[k].slice();
+    }
+  }
+  document.documentElement.classList.toggle("dunkelmodus", dunkelModus);
+}
+
+function gespeichertesFarbschema() {
+  try {
+    const v = localStorage.getItem(FARBSCHEMA_SCHLUESSEL);
+    if (v === "dunkel" || v === "hell") {
+      return v === "dunkel";
+    }
+  } catch (e) {
+    // kein Speicher verfügbar (z. B. privater Modus) – Systemeinstellung nehmen
+  }
+  return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+
+setzeFarbschema(gespeichertesFarbschema());
+
 
 // Gruppenfarben beim Gleitpunkt-Zug
 const FLOAT_FARBE = { v: [200, 30, 58], e: [44, 92, 150], m: [52, 128, 84] };
@@ -706,7 +775,7 @@ function zeigeHinweis(text) {
 // =============================================================================
 function panel(p) {
   noStroke();
-  fill(29, 29, 28, 10);
+  fill(...FARBE.schatten, 10);
   rect(p.x + 1, p.y + 3, p.w, p.h, 12);
   fill(...FARBE.flaeche);
   stroke(...FARBE.linie);
@@ -729,7 +798,7 @@ function panel(p) {
 }
 
 function hell(farbe, anteil) {
-  return [lerp(farbe[0], 255, anteil), lerp(farbe[1], 255, anteil), lerp(farbe[2], 255, anteil)];
+  return [lerp(farbe[0], FARBE.flaeche[0], anteil), lerp(farbe[1], FARBE.flaeche[1], anteil), lerp(farbe[2], FARBE.flaeche[2], anteil)];
 }
 
 function umbrechen(txt, maxBreite) {
@@ -805,9 +874,9 @@ function zeichneKopf() {
 
 function zeichneStufenLeiste() {
   noStroke();
-  fill(253, 240, 242);
+  fill(...FARBE.akzentFlaeche);
   rect(0, 56, W, LEISTE);
-  stroke(240, 200, 208);
+  stroke(...FARBE.akzentLinie);
   strokeWeight(1);
   line(0, 56 + LEISTE, W, 56 + LEISTE);
   noStroke();
@@ -1565,7 +1634,7 @@ function zeichneHinweisBanner() {
   const x = p.x + (p.w - breite) / 2;
   const y = p.y + p.h - 52;
   noStroke();
-  fill(29, 29, 28, 230);
+  fill(...FARBE.dunkelFlaeche, 230);
   rect(x, y, breite, 36, 18);
   fill(255);
   textAlign(CENTER, CENTER);
@@ -1913,13 +1982,13 @@ function zeichneStempel() {
   rotate(-0.18);
   scale(1 + fall * 1.5);
   noFill();
-  stroke(200, 30, 58, alpha);
+  stroke(...FARBE.akzent, alpha);
   strokeWeight(7);
   circle(0, 0, 250);
   strokeWeight(2.5);
   circle(0, 0, 222);
   noStroke();
-  fill(200, 30, 58, alpha);
+  fill(...FARBE.akzent, alpha);
   textFont(TITEL);
   textStyle(BOLD);
   textAlign(CENTER, CENTER);
@@ -1965,7 +2034,7 @@ function zeichneTooltip() {
   const b = textWidth(txt) + 20;
   const x = Math.min(mx + 14, W - b - 10);
   noStroke();
-  fill(29, 29, 28, 235);
+  fill(...FARBE.dunkelFlaeche, 235);
   rect(x, my + 16, b, 26, 6);
   fill(255);
   textAlign(LEFT, CENTER);
@@ -1977,7 +2046,7 @@ function zeichneFehlerMeldung() {
     return;
   }
   noStroke();
-  fill(200, 30, 58, 235);
+  fill(...FARBE.akzent, 235);
   rect(24, 846, 1060, 34, 8);
   fill(255);
   textFont(SCHRIFT);
